@@ -2,9 +2,10 @@
 
 typedef struct ThreadPool ThreadPool;
 
-ThreadPool* threadPool_create(int, int, int);
-void* manage(void* arg);
-void* work(void* arg);
+ThreadPool* poolInit(int, int, int);
+void* manage(void*);
+void* work(void*);
+void threadExit(ThreadPool*);
 
 // 定义任务结构体
 typedef struct Task {
@@ -39,4 +40,3 @@ struct ThreadPool {
 
 	int shutdown;	// 要销毁线程池为1，不要销毁为0
 };
-
