@@ -1,17 +1,22 @@
 #include <pthread.h>
 
 typedef struct ThreadPool ThreadPool;
+typedef struct Task Task;
 
-ThreadPool* poolInit(int, int, int);
-void* manage(void*);
-void* work(void*);
-void threadExit(ThreadPool*);
+ThreadPool* threadPoolInit(int maxCapacity, int maxThreadNum, int minThreadNum);
+void* manage(void* arg);
+void* work(void* arg);
+void threadExit(ThreadPool* pool);
+void threadPoolAdd(ThreadPool* pool, Task* task);
+int threadPoolWorkingNum(ThreadPool* pool);
+int threadPoolLivingNum(ThreadPool* pool);
+int threadPoolDestroy(ThreadPool* pool);
 
 // 定义任务结构体
-typedef struct Task {
+struct Task {
 	void* (*func)(void* arg);
 	void* arg;
-}Task;
+};
 
 // 定义线程池结构体
 struct ThreadPool {
