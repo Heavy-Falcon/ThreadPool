@@ -1,3 +1,6 @@
+#ifndef _THREADPOOL_H_
+#define _THREADPOOL_H_
+
 #include <pthread.h>
 
 typedef struct ThreadPool ThreadPool;
@@ -40,8 +43,10 @@ struct ThreadPool {
 
 	pthread_mutex_t mutexPool;			// 锁整个线程池
 	pthread_mutex_t mutexWorkingNum;	// 锁workingNum变量
-	pthread_cond_t notEmpty;	// 任务队列不满
-	pthread_cond_t notFull;		// 任务队列不空
+	pthread_cond_t empty;	// 任务队列不满
+	pthread_cond_t full;		// 任务队列不空
 
 	int shutdown;	// 要销毁线程池为1，不要销毁为0
 };
+
+#endif

@@ -14,7 +14,7 @@ ThreadPool* threadPoolInit(int maxCapacity, int maxThreadNum, int minThreadNum) 
 			break;
 		}
 
-		// 初始化每个线程的ID为0
+		// 初始化每个工作者线程的ID为0
 		pool->workersID = (pthread_t*)malloc(sizeof(pthread_t) * maxThreadNum);
 		if (pool->workersID == NULL) {
 			printf("malloc workersID failed...\n");
@@ -33,14 +33,14 @@ ThreadPool* threadPoolInit(int maxCapacity, int maxThreadNum, int minThreadNum) 
 		// 初始化4把锁，如果失败则退出
 		if (pthread_mutex_init(&pool->mutexPool, NULL) != 0 ||
 			pthread_mutex_init(&pool->mutexWorkingNum, NULL) != 0 ||
-			pthread_cond_init(&pool->notFull, NULL) != 0 ||
-			pthread_cond_init(&pool->notEmpty, NULL) != 0) {
+			pthread_cond_init(&pool->full, NULL) != 0 ||
+			pthread_cond_init(&pool->empty, NULL) != 0) {
 			printf("mutex or cond init failed...\n");
 			break;
 		}
 
 		// 初始化任务队列	
-		pool->taskQueue = (Task*)malloc(sizeof(Task) * (maxCapacity + 1));
+		pool->taskQueue = (Task*)malloc(sizeof(Task) * maxCapacity);
 		pool->queueCapacity = maxCapacity;
 		pool->queueSize = 0;
 		pool->queueHead = 0;
@@ -65,7 +65,7 @@ ThreadPool* threadPoolInit(int maxCapacity, int maxThreadNum, int minThreadNum) 
 void threadPoolAdd(ThreadPool* pool, Task* task) {
 	pthread_mutex_lock(&pool->mutexPool);
 	while (pool->queueSize == pool->queueCapacity && !pool->shutdown)
-		pthread_cond_wait(&pool->notFull, &pool->mutexPool);
+		pthread_cond_wait(&pool->full, &pool->mutexPool);
 	if (pool->shutdown) {
 		pthread_mutex_unlock(&pool->mutexPool);
 		return;
@@ -79,7 +79,7 @@ void threadPoolAdd(ThreadPool* pool, Task* task) {
 
 	pool->queueSize ++ ;
 
-	pthread_cond_signal(&pool->notEmpty);
+	pthread_cond_signal(&pool->empty);
 	pthread_mutex_unlock(&pool->mutexPool);
 }
 
@@ -91,7 +91,7 @@ void* work(void* arg) {
 		pthread_mutex_lock(&pool->mutexPool);
 		// 如果任务队列为空，阻塞work线程
 		while (!pool->shutdown && pool->queueSize == 0) {
-			pthread_cond_wait(&pool->notEmpty, &pool->mutexPool);  // 条件变量和互斥锁搭配使用
+			pthread_cond_wait(&pool->empty, &pool->mutexPool);  // 条件变量和互斥锁搭配使用
 			if (pool->exitNum > 0) {  // 管理者线程判断进程数目过多，需要有退出
 				pool->exitNum -- ;
 				if (pool->livingNum > pool->minNum){
@@ -114,7 +114,7 @@ void* work(void* arg) {
 		pool->queueHead = (pool->queueHead + 1) % pool->queueCapacity;  // 队头后移，使用循环队列
 		pool->queueSize -- ;
 
-		pthread_cond_signal(&pool->notFull);
+		pthread_cond_signal(&pool->full);
 		pthread_mutex_unlock(&pool->mutexPool);
 
 		// 修改临界资源需加锁
@@ -173,7 +173,7 @@ void* manage(void* arg) {
 			pool->exitNum = NUM;  // 需要有线程退出
 			pthread_mutex_unlock(&pool->mutexPool);
 			for (int i = 0; i < NUM; i ++ )  
-				pthread_cond_signal(&pool->notEmpty);
+				pthread_cond_signal(&pool->empty);
 		}
 	}
 	return NULL;
@@ -201,7 +201,7 @@ void threadExit(ThreadPool* pool) {
 	for (int i = 0; i < pool->maxNum; i ++ ) {
 		if (pool->workersID[i] == tid) {
 			pool->workersID[i] = 0;
-			printf("thread %lu exiting...\n", tid);
+			printf("thread %lu exited...\n", tid);
 			break;
 		}
 	}
@@ -219,7 +219,7 @@ int threadPoolDestroy(ThreadPool* pool) {
 
 	// 唤醒阻塞的工作者线程
 	for (int i = 0; i < pool->livingNum; i ++ )
-		pthread_cond_signal(&pool->notEmpty);
+		pthread_cond_signal(&pool->empty);
 
 	// 释放堆内存
 	if (pool->taskQueue) {
@@ -230,17 +230,12 @@ int threadPoolDestroy(ThreadPool* pool) {
 		free(pool->workersID);
 		pool->workersID = NULL;
 	}
-	// printf("asdf\n");
+
 	pthread_mutex_destroy(&pool->mutexPool);
-
 	pthread_mutex_destroy(&pool->mutexWorkingNum);
-	// printf("adsfasdf\n");
-	// pthread_cond_destroy(&pool->notEmpty);
-	// printf("asdfadsf\n");
-	pthread_cond_destroy(&pool->notFull);
-	// printf("asdfadsf\n");
+	// pthread_cond_destroy(&pool->empty);
+	pthread_cond_destroy(&pool->full);
 
-	// printf("asdf\n");
 	free(pool);
 	pool = NULL;
 	return 0;

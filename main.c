@@ -12,17 +12,23 @@ void* taskFunc(void* arg) {
 }
 
 int main() {
-	ThreadPool* pool = threadPoolInit(20, 10, 3);
-	Task *task;
-	task->func = taskFunc;
+	printf("请分别输入：\n任务队列的最大容量：");
+	int maxCapacity, maxThreadNum, minThreadNum;
+	scanf("%d", &maxCapacity);
+	printf("最大线程数：");
+	scanf("%d", &maxThreadNum);
+	printf("最小线程数：");
+	scanf("%d", &minThreadNum);
+	ThreadPool* pool = threadPoolInit(maxCapacity, maxThreadNum, minThreadNum);
+	Task task = {taskFunc, NULL};
 	for (int i = 0; i < 100; i ++ ) {
 		int* n = (int*)malloc(sizeof(int));
 		*n = i;
-		task->arg = n;
-		threadPoolAdd(pool, task);
+		task.arg = n;
+		threadPoolAdd(pool, &task);
 	}
 	
-	sleep(25);
+	sleep(22);
 
 	threadPoolDestroy(pool);
 	return 0;
