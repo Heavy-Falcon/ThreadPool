@@ -1,9 +1,4 @@
 #include "threadpool.h"
-#include <unistd.h>
-#include <pthread.h>
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
 #define NUM 2
 
 ThreadPool* threadPoolInit(int maxCapacity, int maxThreadNum, int minThreadNum) {
@@ -64,6 +59,8 @@ ThreadPool* threadPoolInit(int maxCapacity, int maxThreadNum, int minThreadNum) 
 // 工作者线程添加任务
 void threadPoolAdd(ThreadPool* pool, Task* task) {
 	pthread_mutex_lock(&pool->mutexPool);
+	
+	// 如果队列已满，则应当阻塞添加任务
 	while (pool->queueSize == pool->queueCapacity && !pool->shutdown)
 		pthread_cond_wait(&pool->full, &pool->mutexPool);
 	if (pool->shutdown) {
@@ -90,15 +87,13 @@ void* work(void* arg) {
 	while (1) {
 		pthread_mutex_lock(&pool->mutexPool);
 		// 如果任务队列为空，阻塞work线程
-		while (!pool->shutdown && pool->queueSize == 0) {
-			pthread_cond_wait(&pool->empty, &pool->mutexPool);  // 条件变量和互斥锁搭配使用
-			if (pool->exitNum > 0) {  // 管理者线程判断进程数目过多，需要有退出
+		while (pool->queueSize == 0 && !pool->shutdown) {
+			pthread_cond_wait(&pool->empty, &pool->mutexPool);
+			if (!pool->shutdown && pool->exitNum > 0) {  // 管理者线程判断进程数目过多，需要有退出
 				pool->exitNum -- ;
-				if (pool->livingNum > pool->minNum){
-					pool->livingNum -- ;
-					pthread_mutex_unlock(&pool->mutexPool);
-					threadExit(pool);
-				}
+				pool->livingNum -- ;
+				pthread_mutex_unlock(&pool->mutexPool);
+				threadExit(pool);
 			}
 		}
 
@@ -157,8 +152,8 @@ void* manage(void* arg) {
 		// 线程不够，添加线程
 		if (taskNum > livingNum && livingNum < pool->maxNum) {
 			pthread_mutex_lock(&pool->mutexPool);
-			for (int i = pool->minNum, cnt = 0; i < pool->maxNum; i ++ )
-				if (pool->workersID[i] == 0 && cnt < NUM && livingNum < pool->maxNum) {
+			for (int i = 0, cnt = 0; i < pool->maxNum && cnt < NUM && pool->livingNum < pool->maxNum; i ++ )
+				if (pool->workersID[i] == 0) {
 					pthread_create(&pool->workersID[i], NULL, work, pool);
 					cnt ++ ;
 					pool->livingNum ++ ;
@@ -233,10 +228,8 @@ int threadPoolDestroy(ThreadPool* pool) {
 
 	pthread_mutex_destroy(&pool->mutexPool);
 	pthread_mutex_destroy(&pool->mutexWorkingNum);
-	// pthread_cond_destroy(&pool->empty);
+	pthread_cond_destroy(&pool->empty);
 	pthread_cond_destroy(&pool->full);
 
-	free(pool);
-	pool = NULL;
 	return 0;
 }

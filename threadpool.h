@@ -2,6 +2,10 @@
 #define _THREADPOOL_H_
 
 #include <pthread.h>
+#include <unistd.h>
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
 
 typedef struct ThreadPool ThreadPool;
 typedef struct Task Task;

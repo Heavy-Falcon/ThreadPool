@@ -1,8 +1,4 @@
-#include <pthread.h>
-#include <unistd.h>
-#include <stdio.h>
 #include "threadpool.h"
-#include <stdlib.h>
 
 void* taskFunc(void* arg) {
 	int n = *(int*)arg;
