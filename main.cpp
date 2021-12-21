@@ -4,7 +4,7 @@ void* taskFunc(void* arg) {
 	int n = *(int*)arg;
 	cout << "Task No." << n << endl;
 	sleep(1);
-	return NULL;
+	return nullptr;
 }
 
 int main() {

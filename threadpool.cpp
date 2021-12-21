@@ -14,19 +14,19 @@ ThreadPool::ThreadPool(int maxCapacity, int maxThreadNum, int minThreadNum) {
 	shutdown = false;
 
 	// 初始化4把锁，如果失败则退出
-	pthread_mutex_init(&mutexPool, NULL);
-	pthread_mutex_init(&mutexWorkingNum, NULL);
+	pthread_mutex_init(&mutexPool, nullptr);
+	pthread_mutex_init(&mutexWorkingNum, nullptr);
 	// 队列为空时，工作者线程阻塞
 	// 不空了则唤醒工作者线程
 	// 队列满时，添加任务的函数阻塞
 	// 不满了，则唤醒添加任务的函数
-	pthread_cond_init(&full, NULL);
-	pthread_cond_init(&empty, NULL);
+	pthread_cond_init(&full, nullptr);
+	pthread_cond_init(&empty, nullptr);
 
 	// 创建管理者线程和最小数目的工作线程
-	pthread_create(&managerID, NULL, manage, this);
+	pthread_create(&managerID, nullptr, manage, this);
 	for (int i = 0; i < minThreadNum; i ++ )
-		pthread_create(&workersID[i], NULL, work, this);
+		pthread_create(&workersID[i], nullptr, work, this);
 	
 }
 
@@ -98,7 +98,7 @@ void* work(void* arg) {
 		pool->setWorkingNum(pool->getWorkingNum() - 1);
 		pthread_mutex_unlock(&pool->mutexWorkingNum);
 	}
-	return NULL;
+	return nullptr;
 }
 
 // 管理者线程的管理函数
@@ -123,7 +123,7 @@ void* manage(void* arg) {
 			pthread_mutex_lock(&pool->mutexPool);
 			for (int i = 0, cnt = 0; i < pool->maxNum && cnt < NUM && livingNum < pool->maxNum; i ++ ) {
 				if (pool->workersID[i] == 0) {
-					pthread_create(&pool->workersID[i], NULL, work, pool);
+					pthread_create(&pool->workersID[i], nullptr, work, pool);
 					cnt ++ ;
 					pool->setLivingNum(pool->getLivingNum() + 1);
 				}
@@ -143,7 +143,7 @@ void* manage(void* arg) {
 				pthread_cond_signal(&pool->empty);
 		}
 	}
-	return NULL;
+	return nullptr;
 }
 
 int ThreadPool::getWorkingNum() {
@@ -174,7 +174,7 @@ void ThreadPool::exit() {
 			break;
 		}
 	}
-	pthread_exit(NULL);
+	pthread_exit(nullptr);
 }
 
 // 线程池析构函数
@@ -182,7 +182,7 @@ ThreadPool::~ThreadPool() {
 	shutdown = true;
 
 	// 阻塞回收管理者线程
-	pthread_join(managerID, NULL);
+	pthread_join(managerID, nullptr);
 
 	// 唤醒阻塞的工作者线程
 	for (int i = 0; i < livingNum; i ++ )

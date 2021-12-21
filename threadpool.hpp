@@ -16,7 +16,7 @@ public:
 	Task() {};
 	Task(void* (*func)(void*)) {
 		this->func = func;
-		this->arg = NULL;
+		this->arg = nullptr;
 	}
 	Task(void* (*func)(void*), void* arg) {
 		this->func = func;
