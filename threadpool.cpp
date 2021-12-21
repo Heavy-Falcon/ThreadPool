@@ -2,7 +2,7 @@
 #define NUM 2
 
 ThreadPool::ThreadPool(int maxCapacity, int maxThreadNum, int minThreadNum) {
-	vector<pthread_t> workersID = vector<pthread_t>(maxThreadNum, 0);
+	this->workersID = vector<pthread_t>(maxThreadNum, 0);
 
 	// 初始化线程池中的几个变量
 	minNum = minThreadNum;
@@ -28,11 +28,10 @@ ThreadPool::ThreadPool(int maxCapacity, int maxThreadNum, int minThreadNum) {
 	for (int i = 0; i < minThreadNum; i ++ )
 		pthread_create(&workersID[i], NULL, work, this);
 	
-	cout << "创建完成" << endl;
 }
 
 // 工作者线程添加任务
-void ThreadPool::add(Task* task) {
+void ThreadPool::add(Task& task) {
 	pthread_mutex_lock(&mutexPool);
 	// 当队列已满时，阻塞添加
 	while (taskQueue.size() >= queueCapacity && !shutdown)
@@ -42,23 +41,20 @@ void ThreadPool::add(Task* task) {
 		return;
 	}
 	// 添加任务
-	taskQueue.push(*task);
+	taskQueue.push(task);
 
 	// 有任务了，唤醒阻塞的工作者线程
 	pthread_cond_signal(&empty);
 	pthread_mutex_unlock(&mutexPool);
-	cout << "任务添加完成" << endl;
+	// cout << "任务添加完成" << endl;
 }
 
 // 工作者线程执行任务
 void* work(void* arg) {
-	cout << "被调用" << endl;
 	ThreadPool* pool = (ThreadPool*)arg;
 
 	while (1) {
-		cout << "进入" << endl;
 		pthread_mutex_lock(&pool->mutexPool);
-		cout << "上锁" << endl;
 		// 如果任务队列为空，阻塞工作者线程
 		while (!pool->shutdown && pool->taskQueue.empty()) {
 			pthread_cond_wait(&pool->empty, &pool->mutexPool);
@@ -79,9 +75,7 @@ void* work(void* arg) {
 		Task task;
 		task.func = pool->taskQueue.front().func;
 		task.arg = pool->taskQueue.front().arg;
-		cout << "queue: " << pool->taskQueue.size() << endl;
 		pool->taskQueue.pop();
-		cout << "queue: " << pool->taskQueue.size() << endl;
 
 		// 取出任务后，任务队列不满了，唤醒阻塞的任务添加函数
 		pthread_cond_signal(&pool->full);
@@ -91,7 +85,6 @@ void* work(void* arg) {
 		// 修改临界资源需加锁
 		pthread_mutex_lock(&pool->mutexWorkingNum);
 		pool->setWorkingNum(pool->getWorkingNum() + 1);
-		cout << "不空" << endl;
 		pthread_mutex_unlock(&pool->mutexWorkingNum);
 		
 		// 执行一个任务
@@ -104,7 +97,6 @@ void* work(void* arg) {
 		pthread_mutex_lock(&pool->mutexWorkingNum);
 		pool->setWorkingNum(pool->getWorkingNum() - 1);
 		pthread_mutex_unlock(&pool->mutexWorkingNum);
-		cout << "工作完毕" << endl;
 	}
 	return NULL;
 }
@@ -129,12 +121,13 @@ void* manage(void* arg) {
 		// 线程不够，添加NUM个线程
 		if (taskNum > livingNum && livingNum < pool->maxNum) {
 			pthread_mutex_lock(&pool->mutexPool);
-			for (int i = 0, cnt = 0; i < pool->maxNum && cnt < NUM && livingNum < pool->maxNum; i ++ )
+			for (int i = 0, cnt = 0; i < pool->maxNum && cnt < NUM && livingNum < pool->maxNum; i ++ ) {
 				if (pool->workersID[i] == 0) {
 					pthread_create(&pool->workersID[i], NULL, work, pool);
 					cnt ++ ;
 					pool->setLivingNum(pool->getLivingNum() + 1);
 				}
+			}
 			pthread_mutex_unlock(&pool->mutexPool);
 		}
 

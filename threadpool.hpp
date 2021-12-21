@@ -44,13 +44,13 @@ public:
 
 	pthread_mutex_t mutexPool;			// 锁整个线程池
 	pthread_mutex_t mutexWorkingNum;	// 锁workingNum变量
-	pthread_cond_t empty;	// 任务队列不满
-	pthread_cond_t full;		// 任务队列不空
+	pthread_cond_t empty;	// 任务队列满时，上此锁
+	pthread_cond_t full;		// 任务队列空时，上此锁
 
 	bool shutdown;
 	ThreadPool(int maxCapacity, int maxThreadNum, int minThreadNum);
 	void exit();
-	void add(Task* task);
+	void add(Task& task);
 	int getWorkingNum();
 	int getLivingNum();
 	void setWorkingNum(int newNum);
