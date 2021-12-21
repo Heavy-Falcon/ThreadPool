@@ -61,7 +61,7 @@ void threadPoolAdd(ThreadPool* pool, Task* task) {
 	pthread_mutex_lock(&pool->mutexPool);
 	
 	// 如果队列已满，则应当阻塞添加任务
-	while (pool->queueSize == pool->queueCapacity && !pool->shutdown)
+	while (pool->queueSize >= pool->queueCapacity && !pool->shutdown)
 		pthread_cond_wait(&pool->full, &pool->mutexPool);
 	if (pool->shutdown) {
 		pthread_mutex_unlock(&pool->mutexPool);
@@ -137,7 +137,7 @@ void* manage(void* arg) {
 	ThreadPool* pool = (ThreadPool*)arg;
 	while (!pool->shutdown) {
 		// 每隔3秒监测一次
-		sleep(3);
+		sleep(2);
 
 		// 加锁并访问池中的几个参数
 		pthread_mutex_lock(&pool->mutexPool);
@@ -161,8 +161,8 @@ void* manage(void* arg) {
 			pthread_mutex_unlock(&pool->mutexPool);
 		}
 
-		// 工作的线程 * 2 < 存活的线程 && 存活的线程 < 最小线程数
-		// 线程过多，销毁线程
+		// 工作的线程 * 2 < 存活的线程 && 存活的线程 > 最小线程数
+		// 线程过多，销毁NUM个线程
 		if (workingNum * 2 < livingNum && livingNum > pool->minNum) {
 			pthread_mutex_lock(&pool->mutexPool);
 			pool->exitNum = NUM;  // 需要有线程退出
@@ -209,12 +209,12 @@ int threadPoolDestroy(ThreadPool* pool) {
 
 	pool->shutdown = 1;
 
-	// 阻塞回收管理者线程
-	pthread_join(pool->managerID, NULL);
-
 	// 唤醒阻塞的工作者线程
 	for (int i = 0; i < pool->livingNum; i ++ )
 		pthread_cond_signal(&pool->empty);
+
+	// 阻塞回收管理者线程
+	pthread_join(pool->managerID, NULL);
 
 	// 释放堆内存
 	if (pool->taskQueue) {

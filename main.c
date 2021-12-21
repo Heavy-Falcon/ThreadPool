@@ -16,8 +16,12 @@ int main() {
 	printf("最小线程数：");
 	scanf("%d", &minThreadNum);
 	ThreadPool* pool = threadPoolInit(maxCapacity, maxThreadNum, minThreadNum);
+	if (pool == NULL) {
+		printf("初始化失败...\n");
+		return -1;
+	}
 	Task task = {taskFunc, NULL};
-	for (int i = 0; i < 100; i ++ ) {
+	for (int i = 1; i <= 100; i ++ ) {
 		int* n = (int*)malloc(sizeof(int));
 		*n = i;
 		task.arg = n;
